@@ -403,6 +403,8 @@ class Network(Configurable):
     # training data for testing purposes. Note that SGD has no problem.
     # optimizer = optimizers.SGDOptimizer(self._config, global_step=self.global_step)
     # optimizer = optimizers.RadamOptimizer(self._config, global_step=self.global_step)
+    # TODO(taro): RadamOptimizer seems to be problematic. Figures out the
+    # problem.
     optimizer = optimizers.AdamOptimizer(self._config, global_step=self.global_step)
     train_output = self._model(self._trainset)
 

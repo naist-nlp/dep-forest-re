@@ -21,7 +21,7 @@ class AdamOptimizer(BaseOptimizer):
     grads_and_vars = self._adam.compute_gradients(
         loss,
         gate_gradients=tf.train.Optimizer.GATE_OP,
-        aggregation_method=2,
+        aggregation_method=tf.AggregationMethod.EXPERIMENTAL_ACCUMULATE_N,
         colocate_gradients_with_ops=True)
 
     if self.clip > 0:
