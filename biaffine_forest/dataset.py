@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# -*- coding: UTF-8 -*-
+# -*- coding: utf-8 -*-
 
 # Copyright 2016 Timothy Dozat
 #
@@ -20,7 +20,7 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 from collections import Counter
 
 from lib.etc.k_means import KMeans
@@ -29,6 +29,9 @@ from vocab import Vocab
 from metabucket import Metabucket
 from forest_utils import load_cube, load_nbest, load_cubesparse
 import sys
+
+tf.disable_eager_execution()
+
 #***************************************************************
 class Dataset(Configurable):
   """"""
@@ -74,7 +77,7 @@ class Dataset(Configurable):
           line = f.readline()
           while line:
             line = line.strip().split()
-            if line:
+            if line and line[0] != '#':
               buff[-1].append(line)
             else:
               if len(buff) < self.lines_per_buffer:
@@ -89,7 +92,7 @@ class Dataset(Configurable):
             buff = self._process_buff(buff)
             yield buff
             line = line.strip().split()
-            if line:
+            if line and line[0] != '#':
               buff = [[line]]
             else:
               buff = [[]]
@@ -97,7 +100,7 @@ class Dataset(Configurable):
         buff = [[]]
         for line in f:
           line = line.strip().split()
-          if line:
+          if line and line[0] != '#':
             buff[-1].append(line)
           else:
             if buff[-1]:
@@ -135,6 +138,9 @@ class Dataset(Configurable):
         #print("[tlog] adj_lists: " + str(adj_lists))
         #sys.exit(0)
       for j, token in enumerate(sent):
+        if j + 1 != int(token[0]):
+          raise ValueError("index does not match: j = {}, index = {}".format(j, token[0]))
+
         word, tag1, tag2, head, rel = token[words.conll_idx], \
                 token[tags.conll_idx[0]], token[tags.conll_idx[1]], token[6], token[rels.conll_idx]
         if self.use_forest:
@@ -193,7 +199,8 @@ class Dataset(Configurable):
   def rebucket(self):
     """"""
 
-    buff = self._file_iterator.next()
+    # TODO(taro): Verifies whether it is correct or not.
+    buff = next(self._file_iterator)
     len_cntr = Counter()
 
     for sent in buff:

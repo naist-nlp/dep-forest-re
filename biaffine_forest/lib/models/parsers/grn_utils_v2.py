@@ -1,5 +1,8 @@
 
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
+
+tf.disable_eager_execution()
+
 
 def collect_neighbor_node_representations(representation, positions):
     # representation: [batch_size, num_nodes, feature_dim]
@@ -115,12 +118,12 @@ class GraphEncoder(object):
 
             # calculate question graph representation
             graph_representations = []
-            for i in xrange(num_syntax_match_layer):
+            for i in range(num_syntax_match_layer):
                 # =============== in edge hidden
                 # [batch_size, node_len, neighbors_size, node_dim]
                 in_neigh_prev_hidden = collect_neighbor_node_representations(node_hidden, in_neigh_idx)
                 # [batch_size, node_len, neighbors_size, node_dim + rel_dim]
-                in_neigh_prev_hidden = tf.concat(3, [in_neigh_prev_hidden, in_neigh_rel_repre])
+                in_neigh_prev_hidden = tf.concat([in_neigh_prev_hidden, in_neigh_rel_repre], 3)
                 in_neigh_prev_hidden = tf.multiply(in_neigh_prev_hidden, tf.expand_dims(in_neigh_mask, axis=-1))
                 # [batch_size, node_len, node_dim + rel_dim]
                 in_neigh_prev_hidden = tf.reduce_sum(in_neigh_prev_hidden, axis=2)
@@ -133,7 +136,7 @@ class GraphEncoder(object):
                 # =============== out edge hidden
                 # h_{jk} [batch_size, node_len, neighbors_size, node_dim]
                 out_neigh_prev_hidden = collect_neighbor_node_representations(node_hidden, out_neigh_idx)
-                out_neigh_prev_hidden = tf.concat(3, [out_neigh_prev_hidden, out_neigh_rel_repre])
+                out_neigh_prev_hidden = tf.concat([out_neigh_prev_hidden, out_neigh_rel_repre], 3)
                 out_neigh_prev_hidden = tf.multiply(out_neigh_prev_hidden, tf.expand_dims(out_neigh_mask, axis=-1))
                 # [batch_size, node_len, node_dim]
                 out_neigh_prev_hidden = tf.reduce_sum(out_neigh_prev_hidden, axis=2)
@@ -174,4 +177,3 @@ class GraphEncoder(object):
 
             # decide how to use graph_representations
         return graph_representations, node_hidden, node_cell
-

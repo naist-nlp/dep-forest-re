@@ -22,9 +22,11 @@ from __future__ import print_function
 import os
 import argparse
 import numpy as np
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 
-from ConfigParser import SafeConfigParser
+from configparser import ConfigParser
+
+tf.disable_eager_execution()
 
 #***************************************************************
 class Configurable(object):
@@ -51,12 +53,12 @@ class Configurable(object):
   def _configure(self, **kwargs):
     """"""
 
-    config = SafeConfigParser()
+    config = ConfigParser()
     config_files = [os.path.join('config', 'defaults.cfg'),
                     os.path.join('config', self.name.lower() + '.cfg'),
                     kwargs.pop('config_file', '')]
     config.read(config_files)
-    for option, value in kwargs.iteritems():
+    for option, value in kwargs.items():
       assigned = False
       for section in config.sections():
         if option in config.options(section):

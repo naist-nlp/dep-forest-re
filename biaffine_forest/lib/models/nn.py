@@ -1,14 +1,14 @@
 #!/usr/bin/env python
-# -*- coding: UTF-8 -*-
- 
+# -*- coding: utf-8 -*-
+
 # Copyright 2016 Timothy Dozat
-# 
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# 
+#
 #     http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -20,7 +20,7 @@ from __future__ import division
 from __future__ import print_function
 
 import numpy as np
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 
 from lib import linalg
 from lib.etc.tarjan import Tarjan
@@ -28,42 +28,44 @@ from lib.models import rnn
 from configurable import Configurable
 from vocab import Vocab
 
+tf.disable_eager_execution()
+
 #***************************************************************
 class NN(Configurable):
   """"""
-  
+
   ZERO = tf.convert_to_tensor(0.)
   ONE = tf.convert_to_tensor(1.)
   PUNCT = set(['``', "''", ':', ',', '.', 'PU', 'PUNCT'])
-  
+
   #=============================================================
   def __init__(self, *args, **kwargs):
     """"""
-    
+
     global_step = kwargs.pop('global_step', None)
     super(NN, self).__init__(*args, **kwargs)
-    
+
     if global_step is not None:
       self._global_sigmoid = 1-tf.nn.sigmoid(3*(2*global_step/(self.train_iters-1)-1))
     else:
       self._global_sigmoid = 1
-    
+
     self.tokens_to_keep3D = None
     self.sequence_lengths = None
     self.n_tokens = None
     self.moving_params = None
     return
-  
+
   #=============================================================
   def embed_concat(self, word_inputs, tag_inputs=None, rel_inputs=None):
     """"""
-    
+
     if self.moving_params is None:
       word_keep_prob = self.word_keep_prob
       tag_keep_prob = self.tag_keep_prob
       rel_keep_prob = self.rel_keep_prob
-      noise_shape = tf.pack([tf.shape(word_inputs)[0], tf.shape(word_inputs)[1], 1])
-      
+      noise_shape = tf.stack([tf.shape(word_inputs)[0], tf.shape(word_inputs)[1], 1])
+
       if word_keep_prob < 1:
         word_mask = tf.nn.dropout(tf.ones(noise_shape), word_keep_prob)*word_keep_prob
       else:
@@ -76,7 +78,7 @@ class NN(Configurable):
         rel_mask = tf.nn.dropout(tf.ones(noise_shape), rel_keep_prob)*rel_keep_prob
       else:
         rel_mask = 1
-      
+
       word_embed_size = word_inputs.get_shape().as_list()[-1]
       tag_embed_size = 0 if tag_inputs is None else tag_inputs.get_shape().as_list()[-1]
       rel_embed_size = 0 if rel_inputs is None else rel_inputs.get_shape().as_list()[-1]
@@ -87,7 +89,7 @@ class NN(Configurable):
       if word_embed_size == tag_embed_size:
         dropped_sizes += word_mask * tag_mask * word_embed_size
       scale_factor = total_size / (dropped_sizes + self.epsilon)
-      
+
       word_inputs *= word_mask * scale_factor
       if tag_inputs is not None:
         tag_inputs *= tag_mask * scale_factor
@@ -97,33 +99,33 @@ class NN(Configurable):
       word_embed_size = word_inputs.get_shape().as_list()[-1]
       tag_embed_size = 0 if tag_inputs is None else tag_inputs.get_shape().as_list()[-1]
       rel_embed_size = 0 if rel_inputs is None else rel_inputs.get_shape().as_list()[-1]
-    
-    return tf.concat(2, filter(lambda x: x is not None, [word_inputs, tag_inputs, rel_inputs]))
-  
+
+    return tf.concat(list(filter(lambda x: x is not None, [word_inputs, tag_inputs, rel_inputs])), 2)
+
   #=============================================================
   def RNN(self, inputs):
     """"""
-    
+
     input_size = inputs.get_shape().as_list()[-1]
     cell = self.recur_cell(self._config, input_size=input_size, moving_params=self.moving_params)
-    lengths = tf.reshape(tf.to_int64(self.sequence_lengths), [-1])
-    
+    lengths = tf.reshape(tf.cast(self.sequence_lengths, tf.int64), [-1])
+
     if self.moving_params is None:
       ff_keep_prob = self.ff_keep_prob
       recur_keep_prob = self.recur_keep_prob
     else:
       ff_keep_prob = 1
       recur_keep_prob = 1
-    
+
     if self.recur_bidir:
       top_recur, fw_recur, bw_recur = rnn.dynamic_bidirectional_rnn(cell, cell, inputs,
                                                                     lengths,
                                                                     ff_keep_prob=ff_keep_prob,
                                                                     recur_keep_prob=recur_keep_prob,
                                                                     dtype=tf.float32)
-      fw_cell, fw_out = tf.split(1, 2, fw_recur)
-      bw_cell, bw_out = tf.split(1, 2, bw_recur)
-      end_recur = tf.concat(1, [fw_out, bw_out])
+      fw_cell, fw_out = tf.split(fw_recur, 2, axis=1)
+      bw_cell, bw_out = tf.split(bw_recur, 2, axis=1)
+      end_recur = tf.concat([fw_out, bw_out], 1)
       top_recur.set_shape([tf.Dimension(None), tf.Dimension(None), tf.Dimension(2*self.recur_size)])
     else:
       top_recur, end_recur = rnn.dynamic_rnn(cell, inputs,
@@ -133,13 +135,13 @@ class NN(Configurable):
                                              dtype=tf.float32)
       top_recur.set_shape([tf.Dimension(None), tf.Dimension(None), tf.Dimension(self.recur_size)])
     return top_recur, end_recur
-  
+
   #=============================================================
   def soft_attn(self, top_recur):
     """"""
-    
+
     reuse = (self.moving_params is not None) or None
-    
+
     input_size = top_recur.get_shape().as_list()[-1]
     with tf.variable_scope('MLP', reuse=reuse):
       head_mlp, dep_mlp = self.MLP(top_recur, self.info_mlp_size,
@@ -149,29 +151,29 @@ class NN(Configurable):
     with tf.variable_scope('Arcs', reuse=reuse):
       arc_logits = self.bilinear_classifier(dep_mlp, head_mlp, keep_prob=self.info_keep_prob)
       arc_prob = self.softmax(arc_logits)
-      head_lin = tf.batch_matmul(arc_prob, top_recur)
-      top_recur = tf.concat(2, [top_recur, head_lin])
+      head_lin = tf.matmul(arc_prob, top_recur)
+      top_recur = tf.concat([top_recur, head_lin], 2)
     top_recur.set_shape([tf.Dimension(None), tf.Dimension(None), tf.Dimension(4*self.recur_size)])
     return top_recur
 
   #=============================================================
   def linear(self, inputs, output_size, n_splits=1, add_bias=False):
     """"""
-    
+
     n_dims = len(inputs.get_shape().as_list())
     batch_size = tf.shape(inputs)[0]
     bucket_size = tf.shape(inputs)[1]
     input_size = inputs.get_shape().as_list()[-1]
-    output_shape = tf.pack([batch_size] + [bucket_size]*(n_dims-2) + [output_size])
+    output_shape = tf.stack([batch_size] + [bucket_size]*(n_dims-2) + [output_size])
     shape_to_set = [tf.Dimension(None)]*(n_dims-1) + [tf.Dimension(output_size)]
-    
+
     if self.moving_params is None:
       keep_prob = self.info_keep_prob
     else:
       keep_prob = 1
-    
+
     if keep_prob < 1:
-      noise_shape = tf.pack([batch_size] + [1]*(n_dims-2) + [input_size])
+      noise_shape = tf.stack([batch_size] + [1]*(n_dims-2) + [input_size])
       inputs = tf.nn.dropout(inputs, keep_prob, noise_shape=noise_shape)
 
     lin = linalg.linear(inputs,
@@ -191,45 +193,45 @@ class NN(Configurable):
   #=============================================================
   def softmax(self, inputs):
     """"""
-    
+
     input_shape = tf.shape(inputs)
     batch_size = input_shape[0]
     bucket_size = input_shape[1]
     input_size = input_shape[2]
-    inputs = tf.reshape(inputs, tf.pack([-1, input_size]))
+    inputs = tf.reshape(inputs, tf.stack([-1, input_size]))
     probs = tf.nn.softmax(inputs)
-    probs = tf.reshape(probs, tf.pack([batch_size, bucket_size, input_size]))
+    probs = tf.reshape(probs, tf.stack([batch_size, bucket_size, input_size]))
     return probs
-  
+
   #=============================================================
   def MLP(self, inputs, output_size, func=None, keep_prob=None, n_splits=1):
     """"""
-    
+
     n_dims = len(inputs.get_shape().as_list())
     batch_size = tf.shape(inputs)[0]
     bucket_size = tf.shape(inputs)[1]
     input_size = inputs.get_shape().as_list()[-1]
-    output_shape = tf.pack([batch_size] + [bucket_size]*(n_dims-2) + [output_size])
+    output_shape = tf.stack([batch_size] + [bucket_size]*(n_dims-2) + [output_size])
     shape_to_set = [tf.Dimension(None)]*(n_dims-1) + [tf.Dimension(output_size)]
     if func is None:
       func = self.mlp_func
-    
+
     if self.moving_params is None:
       if keep_prob is None:
         keep_prob = self.mlp_keep_prob
     else:
       keep_prob = 1
     if keep_prob < 1:
-      noise_shape = tf.pack([batch_size] + [1]*(n_dims-2) + [input_size])
+      noise_shape = tf.stack([batch_size] + [1]*(n_dims-2) + [input_size])
       inputs = tf.nn.dropout(inputs, keep_prob, noise_shape=noise_shape)
-    
+
     linear = linalg.linear(inputs,
-                        output_size,
-                        n_splits=n_splits * (1+(func.__name__ in ('gated_tanh', 'gated_identity'))),
-                        add_bias=True,
-                        moving_params=self.moving_params)
+                           output_size,
+                           n_splits=n_splits * (1+(func.__name__ in ('gated_tanh', 'gated_identity'))),
+                           add_bias=True,
+                           moving_params=self.moving_params)
     if func.__name__ in ('gated_tanh', 'gated_identity'):
-      linear = [tf.concat(n_dims-1, [lin1, lin2]) for lin1, lin2 in zip(linear[:len(linear)//2], linear[len(linear)//2:])]
+      linear = [tf.concat([lin1, lin2], n_dims-1) for lin1, lin2 in zip(linear[:len(linear)//2], linear[len(linear)//2:])]
     if n_splits == 1:
       linear = [linear]
     for i, split in enumerate(linear):
@@ -240,64 +242,64 @@ class NN(Configurable):
       return linear[0]
     else:
       return linear
-  
+
   #=============================================================
   def double_MLP(self, inputs, n_splits=1):
     """"""
-    
+
     batch_size = tf.shape(inputs)[0]
     bucket_size = tf.shape(inputs)[1]
     input_size = inputs.get_shape().as_list()[-1]
     output_size = self.attn_mlp_size
-    output_shape = tf.pack([batch_size, bucket_size, bucket_size, output_size])
+    output_shape = tf.stack([batch_size, bucket_size, bucket_size, output_size])
     shape_to_set = [tf.Dimension(None), tf.Dimension(None), tf.Dimension(None), tf.Dimension(output_size)]
-    
+
     if self.moving_params is None:
       keep_prob = self.mlp_keep_prob
     else:
       keep_prob = 1
     if isinstance(keep_prob, tf.Tensor) or keep_prob < 1:
-      noise_shape = tf.pack([batch_size, 1, input_size])
+      noise_shape = tf.stack([batch_size, 1, input_size])
       inputs = tf.nn.dropout(inputs, keep_prob, noise_shape=noise_shape)
-    
+
     lin1, lin2 = linalg.linear(inputs,
                                output_size*n_splits,
                                n_splits=2,
                                add_bias=True,
                                moving_params=self.moving_params)
-    lin1 = tf.reshape(tf.transpose(lin1, [0, 2, 1]), tf.pack([-1, bucket_size, 1]))
-    lin2 = tf.reshape(tf.transpose(lin2, [0, 2, 1]), tf.pack([-1, 1, bucket_size]))
+    lin1 = tf.reshape(tf.transpose(lin1, [0, 2, 1]), tf.stack([-1, bucket_size, 1]))
+    lin2 = tf.reshape(tf.transpose(lin2, [0, 2, 1]), tf.stack([-1, 1, bucket_size]))
     lin = lin1 + lin2
-    lin = tf.reshape(lin, tf.pack([batch_size, n_splits*output_size, bucket_size, bucket_size]))
+    lin = tf.reshape(lin, tf.stack([batch_size, n_splits*output_size, bucket_size, bucket_size]))
     lin = tf.transpose(lin, [0,2,3,1])
-    top_mlps = tf.split(3, n_splits, self.mlp_func(lin))
+    top_mlps = tf.split(self.mlp_func(lin), n_splits, axis=3)
     for top_mlp in top_mlps:
       top_mlp.set_shape(shape_to_set)
     if n_splits == 1:
       return top_mlps[0]
     else:
       return top_mlps
-  
+
   #=============================================================
   def linear_classifier(self, inputs, n_classes, add_bias=True, keep_prob=None):
     """"""
-    
+
     n_dims = len(inputs.get_shape().as_list())
     batch_size = tf.shape(inputs)[0]
     bucket_size = tf.shape(inputs)[1]
     input_size = inputs.get_shape().as_list()[-1]
     output_size = n_classes
-    output_shape = tf.pack([batch_size] + [bucket_size]*(n_dims-2) + [output_size])
-    
+    output_shape = tf.stack([batch_size] + [bucket_size]*(n_dims-2) + [output_size])
+
     if self.moving_params is None:
       if keep_prob is None:
         keep_prob = self.mlp_keep_prob
     else:
       keep_prob = 1
     if isinstance(keep_prob, tf.Tensor) or keep_prob < 1:
-      noise_shape = tf.pack([batch_size] + [1]*(n_dims-2) +[input_size])
+      noise_shape = tf.stack([batch_size] + [1]*(n_dims-2) +[input_size])
       inputs = tf.nn.dropout(inputs, keep_prob, noise_shape=noise_shape)
-    
+
     inputs = tf.reshape(inputs, [-1, input_size])
     output = linalg.linear(inputs,
                     output_size,
@@ -307,29 +309,29 @@ class NN(Configurable):
     output = tf.reshape(output, output_shape)
     output.set_shape([tf.Dimension(None)]*(n_dims-1) + [tf.Dimension(output_size)])
     return output
-  
+
   #=============================================================
   def bilinear_classifier(self, inputs1, inputs2, add_bias1=True, add_bias2=False, keep_prob=None):
     """"""
-    
+
     input_shape = tf.shape(inputs1)
     batch_size = input_shape[0]
     bucket_size = input_shape[1]
     input_size = inputs1.get_shape().as_list()[-1]
-    
+
     if self.moving_params is None:
       if keep_prob is None:
         keep_prob = self.mlp_keep_prob
     else:
       keep_prob = 1
     if isinstance(keep_prob, tf.Tensor) or keep_prob < 1:
-      noise_shape = tf.pack([batch_size, 1, input_size])
+      noise_shape = tf.stack([batch_size, 1, input_size])
       # Experimental
       #inputs1 = tf.nn.dropout(inputs1, keep_prob if add_bias2 else tf.sqrt(keep_prob), noise_shape=noise_shape)
       #inputs2 = tf.nn.dropout(inputs2, keep_prob if add_bias1 else tf.sqrt(keep_prob), noise_shape=noise_shape)
       inputs1 = tf.nn.dropout(inputs1, keep_prob, noise_shape=noise_shape)
       inputs2 = tf.nn.dropout(inputs2, keep_prob, noise_shape=noise_shape)
-    
+
     bilin = linalg.bilinear(inputs1, inputs2, 1,
                             add_bias1=add_bias1,
                             add_bias2=add_bias2,
@@ -337,26 +339,26 @@ class NN(Configurable):
                             moving_params=self.moving_params)
     output = tf.squeeze(bilin)
     return output
-  
+
   #=============================================================
   def diagonal_bilinear_classifier(self, inputs1, inputs2, add_bias1=True, add_bias2=False):
     """"""
-    
+
     input_shape = tf.shape(inputs1)
     batch_size = input_shape[0]
     bucket_size = input_shape[1]
     input_size = inputs1.get_shape().as_list()[-1]
-    shape_to_set = tf.pack([batch_size, bucket_size, input_size+1])
-    
+    shape_to_set = tf.stack([batch_size, bucket_size, input_size+1])
+
     if self.moving_params is None:
       keep_prob = self.mlp_keep_prob
     else:
       keep_prob = 1
     if isinstance(keep_prob, tf.Tensor) or keep_prob < 1:
-      noise_shape = tf.pack([batch_size, 1, input_size])
+      noise_shape = tf.stack([batch_size, 1, input_size])
       inputs1 = tf.nn.dropout(inputs1, tf.sqrt(keep_prob), noise_shape=noise_shape)
       inputs2 = tf.nn.dropout(inputs2, tf.sqrt(keep_prob), noise_shape=noise_shape)
-    
+
     bilin = linalg.diagonal_bilinear(inputs1, inputs2, 1,
                                      add_bias1=add_bias1,
                                      add_bias2=add_bias2,
@@ -364,138 +366,138 @@ class NN(Configurable):
                                      moving_params=self.moving_params)
     output = tf.squeeze(bilin)
     return output
-  
+
   #=============================================================
   def conditional_linear_classifier(self, inputs, n_classes, probs, add_bias=True):
     """"""
-    
+
     input_shape = tf.shape(inputs)
     batch_size = input_shape[0]
     bucket_size = input_shape[1]
     input_size = inputs.get_shape().as_list()[-1]
-    
+
     if len(probs.get_shape().as_list()) == 2:
-      probs = tf.to_float(tf.one_hot(tf.to_int64(probs), bucket_size, 1, 0))
+      probs = tf.cast(tf.one_hot(tf.cast(probs, tf.int64), bucket_size, 1, 0), tf.float32)
     else:
       probs = tf.stop_gradient(probs)
-    
+
     if self.moving_params is None:
       keep_prob = self.mlp_keep_prob
     else:
       keep_prob = 1
     if isinstance(keep_prob, tf.Tensor) or keep_prob < 1:
-      noise_shape = tf.pack([batch_size, 1, 1, input_size])
+      noise_shape = tf.stack([batch_size, 1, 1, input_size])
       inputs = tf.nn.dropout(inputs, keep_prob, noise_shape=noise_shape)
-    
+
     lin = linalg.linear(inputs,
                         n_classes,
                         add_bias=add_bias,
                         initializer=tf.zeros_initializer,
                         moving_params=self.moving_params)
-    weighted_lin = tf.batch_matmul(lin, tf.expand_dims(probs, 3), adj_x=True)
-    
+    weighted_lin = tf.matmul(lin, tf.expand_dims(probs, 3), adjoint_a=True)
+
     return weighted_lin, lin
-  
+
   #=============================================================
   def conditional_diagonal_bilinear_classifier(self, inputs1, inputs2, n_classes, probs, add_bias1=True, add_bias2=True):
     """"""
-    
+
     input_shape = tf.shape(inputs1)
     batch_size = input_shape[0]
     bucket_size = input_shape[1]
     input_size = inputs1.get_shape().as_list()[-1]
     input_shape_to_set = [tf.Dimension(None), tf.Dimension(None), input_size+1]
-    output_shape = tf.pack([batch_size, bucket_size, n_classes, bucket_size])
+    output_shape = tf.stack([batch_size, bucket_size, n_classes, bucket_size])
     if len(probs.get_shape().as_list()) == 2:
-      probs = tf.to_float(tf.one_hot(tf.to_int64(probs), bucket_size, 1, 0))
+      probs = tf.cast(tf.one_hot(tf.cast(probs, tf.int64), bucket_size, 1, 0), tf.float32)
     else:
       probs = tf.stop_gradient(probs)
-    
+
     if self.moving_params is None:
       keep_prob = self.mlp_keep_prob
     else:
       keep_prob = 1
     if isinstance(keep_prob, tf.Tensor) or keep_prob < 1:
-      noise_shape = tf.pack([batch_size, 1, input_size])
+      noise_shape = tf.stack([batch_size, 1, input_size])
       inputs1 = tf.nn.dropout(inputs1, tf.sqrt(keep_prob), noise_shape=noise_shape)
       inputs2 = tf.nn.dropout(inputs2, tf.sqrt(keep_prob), noise_shape=noise_shape)
-    
-    inputs1 = tf.concat(2, [inputs1, tf.ones(tf.pack([batch_size, bucket_size, 1]))])
+
+    inputs1 = tf.concat([inputs1, tf.ones(tf.stack([batch_size, bucket_size, 1]))], 2)
     inputs1.set_shape(input_shape_to_set)
-    inputs2 = tf.concat(2, [inputs2, tf.ones(tf.pack([batch_size, bucket_size, 1]))])
+    inputs2 = tf.concat([inputs2, tf.ones(tf.stack([batch_size, bucket_size, 1]))], 2)
     inputs2.set_shape(input_shape_to_set)
-    
+
     bilin = linalg.diagonal_bilinear(inputs1, inputs2,
                                      n_classes,
                                      add_bias1=add_bias1,
                                      add_bias2=add_bias2,
                                      initializer=tf.zeros_initializer,
                                      moving_params=self.moving_params)
-    weighted_bilin = tf.batch_matmul(bilin, tf.expand_dims(probs, 3))
-    
+    weighted_bilin = tf.matmul(bilin, tf.expand_dims(probs, 3))
+
     return weighted_bilin, bilin
-  
+
   #=============================================================
   def conditional_bilinear_classifier(self, inputs1, inputs2, n_classes, probs, add_bias1=True, add_bias2=True):
     """"""
-    
+
     input_shape = tf.shape(inputs1)
     batch_size = input_shape[0]
     bucket_size = input_shape[1]
     input_size = inputs1.get_shape().as_list()[-1]
     input_shape_to_set = [tf.Dimension(None), tf.Dimension(None), input_size+1]
-    output_shape = tf.pack([batch_size, bucket_size, n_classes, bucket_size])
+    output_shape = tf.stack([batch_size, bucket_size, n_classes, bucket_size])
     if len(probs.get_shape().as_list()) == 2:
-      probs = tf.to_float(tf.one_hot(tf.to_int64(probs), bucket_size, 1, 0))
+      probs = tf.cast(tf.one_hot(tf.cast(probs, tf.int64), bucket_size, 1, 0), tf.float32)
     else:
       probs = tf.stop_gradient(probs)
-    
+
     if self.moving_params is None:
       keep_prob = self.mlp_keep_prob
     else:
       keep_prob = 1
     if isinstance(keep_prob, tf.Tensor) or keep_prob < 1:
-      noise_shape = tf.pack([batch_size, 1, input_size])
+      noise_shape = tf.stack([batch_size, 1, input_size])
       inputs1 = tf.nn.dropout(inputs1, keep_prob, noise_shape=noise_shape)
       inputs2 = tf.nn.dropout(inputs2, keep_prob, noise_shape=noise_shape)
-    
-    inputs1 = tf.concat(2, [inputs1, tf.ones(tf.pack([batch_size, bucket_size, 1]))])
+
+    inputs1 = tf.concat([inputs1, tf.ones(tf.stack([batch_size, bucket_size, 1]))], 2)
     inputs1.set_shape(input_shape_to_set)
-    inputs2 = tf.concat(2, [inputs2, tf.ones(tf.pack([batch_size, bucket_size, 1]))])
+    inputs2 = tf.concat([inputs2, tf.ones(tf.stack([batch_size, bucket_size, 1]))], 2)
     inputs2.set_shape(input_shape_to_set)
-    
+
     bilin = linalg.bilinear(inputs1, inputs2,
                      n_classes,
                      add_bias1=add_bias1,
                      add_bias2=add_bias2,
                      initializer=tf.zeros_initializer,
                      moving_params=self.moving_params)
-    weighted_bilin = tf.batch_matmul(bilin, tf.expand_dims(probs, 3))
-    
+    weighted_bilin = tf.matmul(bilin, tf.expand_dims(probs, 3))
+
     return weighted_bilin, bilin
-  
+
   #=============================================================
   def output(self, logits3D, targets3D):
     """"""
-    
+
     original_shape = tf.shape(logits3D)
     batch_size = original_shape[0]
     bucket_size = original_shape[1]
-    flat_shape = tf.pack([batch_size, bucket_size])
-    
-    logits2D = tf.reshape(logits3D, tf.pack([batch_size*bucket_size, -1]))
+    flat_shape = tf.stack([batch_size, bucket_size])
+
+    logits2D = tf.reshape(logits3D, tf.stack([batch_size*bucket_size, -1]))
     targets1D = tf.reshape(targets3D, [-1])
     tokens_to_keep1D = tf.reshape(self.tokens_to_keep3D, [-1])
-    
-    predictions1D = tf.to_int32(tf.argmax(logits2D, 1))
+
+    predictions1D = tf.cast(tf.argmax(logits2D, 1), tf.int32)
     probabilities2D = tf.nn.softmax(logits2D)
-    cross_entropy1D = tf.nn.sparse_softmax_cross_entropy_with_logits(logits2D, targets1D)
-    
-    correct1D = tf.to_float(tf.equal(predictions1D, targets1D))
+    cross_entropy1D = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits2D, labels=targets1D)
+
+    correct1D = tf.cast(tf.equal(predictions1D, targets1D), tf.float32)
     n_correct = tf.reduce_sum(correct1D * tokens_to_keep1D)
     accuracy = n_correct / self.n_tokens
     loss = tf.reduce_sum(cross_entropy1D * tokens_to_keep1D) / self.n_tokens
-    
+
     output = {
       'probabilities': tf.reshape(probabilities2D, original_shape),
       'predictions': tf.reshape(predictions1D, flat_shape),
@@ -506,32 +508,32 @@ class NN(Configurable):
       'accuracy': accuracy,
       'loss': loss
     }
-    
+
     return output
-  
+
   #=============================================================
   def conditional_probabilities(self, logits4D, transpose=True):
     """"""
-    
+
     if transpose:
       logits4D = tf.transpose(logits4D, [0,1,3,2])
     original_shape = tf.shape(logits4D)
     n_classes = original_shape[3]
-    
-    logits2D = tf.reshape(logits4D, tf.pack([-1, n_classes]))
+
+    logits2D = tf.reshape(logits4D, tf.stack([-1, n_classes]))
     probabilities2D = tf.nn.softmax(logits2D)
     return tf.reshape(probabilities2D, original_shape)
-  
+
   #=============================================================
   def tag_argmax(self, tag_probs, tokens_to_keep):
     """"""
-    
+
     return np.argmax(tag_probs[:,Vocab.ROOT:], axis=1)+Vocab.ROOT
-  
+
   #=============================================================
   def parse_argmax(self, parse_probs, tokens_to_keep):
     """"""
-    
+
     if self.ensure_tree:
       tokens_to_keep[0] = True
       length = np.sum(tokens_to_keep)
@@ -607,11 +609,11 @@ class NN(Configurable):
       parse_probs = parse_probs * tokens_to_keep
       parse_preds = np.argmax(parse_probs, axis=1)
       return parse_preds
-  
+
   #=============================================================
   def rel_argmax(self, rel_probs, tokens_to_keep):
     """"""
-    
+
     if self.ensure_tree:
       tokens_to_keep[0] = True
       rel_probs[:,Vocab.PAD] = 0
@@ -635,13 +637,13 @@ class NN(Configurable):
       rel_probs[:,Vocab.PAD] = 0
       rel_preds = np.argmax(rel_probs, axis=1)
       return rel_preds
-  
+
   #=============================================================
   def __call__(self, inputs, targets, moving_params=None):
     """"""
-    
+
     raise NotImplementedError()
-  
+
   #=============================================================
   @property
   def global_sigmoid(self):

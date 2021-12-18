@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
 # Copyright 2016 Timothy Dozat
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,15 +15,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-#!/usr/bin/env python
-# -*- coding: UTF-8 -*-
 
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
 import numpy as np
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 
 from vocab import Vocab
 from lib.models import NN
@@ -28,6 +29,8 @@ from lib.models import NN
 from lib.models.parsers.eisner_nbest import eisner_dp_nbest
 
 import math
+
+tf.disable_eager_execution()
 
 #***************************************************************
 class BaseParser(NN):
@@ -139,7 +142,7 @@ class BaseParser(NN):
             correct['UAS'][-1] = 1
             if line[7] == line[9]:
               correct['LAS'][-1] = 1
-    correct = {k:np.array(v) for k, v in correct.iteritems()}
+    correct = {k:np.array(v) for k, v in correct.items()}
     return 'UAS: %.2f    LAS: %.2f\n' % (np.mean(correct['UAS']) * 100, np.mean(correct['LAS']) * 100), correct
 
   #=============================================================

@@ -12,8 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-from parser import Parser
-from shallow_parser import ShallowParser
-from notag_parser import NoTagParser
-from kg_parser import KGParser
-from grn_parser import GRNParser
+from .parser import Parser
+from .shallow_parser import ShallowParser
+from .notag_parser import NoTagParser
+from .kg_parser import KGParser
+from .grn_parser import GRNParser

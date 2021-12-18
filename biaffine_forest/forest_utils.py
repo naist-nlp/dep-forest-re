@@ -1,3 +1,6 @@
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 import os, sys, json, codecs
 import heapq
@@ -74,8 +77,8 @@ def load_cube(path, only_keep, rel_vocab):
         mapping[len(sent)][sent] = (triples, adj_lists)
         total_words += len(sent)
         total_edges += len(triples)
-  print sum(len(d.keys()) for d in mapping.values())
-  print 'On average each word has %f edges' % (total_edges/total_words)
+  print(sum(len(d.keys()) for d in mapping.values()))
+  print('On average each word has %f edges' % (total_edges/total_words))
   return mapping
 
 
@@ -97,8 +100,8 @@ def load_cubesparse(path, only_keep, rel_vocab):
       mapping.append((triples, adj_lists))
       total_words += len(sent)
       total_edges += len(triples)
-  print len(mapping)
-  print 'On average each word has %f edges' % (total_edges/total_words)
+  print(len(mapping))
+  print('On average each word has %f edges' % (total_edges/total_words))
   return mapping
 
 
@@ -116,8 +119,8 @@ def load_nbest(path, only_keep, rel_vocab):
       mapping.append((triples, adj_lists))
       total_words += len(sent)
       total_edges += len(triples)
-  print len(mapping)
-  print 'On average each word has %f edges' % (total_edges/total_words)
+  print(len(mapping))
+  print('On average each word has %f edges' % (total_edges/total_words))
   return mapping
 
 
@@ -167,11 +170,11 @@ if __name__ == '__main__':
         sent.append(line[1])
         lb = line[7]
         if lb not in rel_vocab:
-          print 'OOV relation:', lb
+          print('OOV relation:', lb)
           lb = 2
         else:
           lb = rel_vocab[lb]
         mi, hi = int(line[0]), int(line[6])
         triples_ref.append((mi, hi, lb))
-  print 'LAS:', scores[0]/scores[1], scores[0], scores[1]
-  print 'UAS:', scores[2]/scores[3], scores[2], scores[3]
+  print('LAS:', scores[0]/scores[1], scores[0], scores[1])
+  print('UAS:', scores[2]/scores[3], scores[2], scores[3])

@@ -1,14 +1,14 @@
 #!/usr/bin/env python
-# -*- coding: UTF-8 -*-
- 
+# -*- coding: utf-8 -*-
+
 # Copyright 2016 Timothy Dozat
-# 
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
-# 
+#
 #     http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -25,13 +25,13 @@ from collections import defaultdict
 class Tarjan:
   """
     Computes Tarjan's algorithm for finding strongly connected components (cycles) of a graph
-    
+
     Attributes:
       edges: dictionary of edges such that edges[dep] = head
       vertices: set of dependents
       SCCs: list of sets of strongly connected components. Non-singleton sets are cycles.
   """
-  
+
   #=============================================================
   def __init__(self, prediction, tokens):
     """
@@ -40,7 +40,7 @@ class Tarjan:
           prediction[dep_idx] = head_idx
         tokens: the tokens we care about (i.e. exclude _GO, _EOS, and _PAD)
     """
-    
+
     self._edges = defaultdict(set)
     self._vertices = set((0,))
     for dep, head in enumerate(prediction[tokens]):
@@ -50,17 +50,17 @@ class Tarjan:
     self._lowlinks = {}
     self._onstack = defaultdict(lambda: False)
     self._SCCs = []
-    
+
     index = 0
     stack = []
     for v in self.vertices:
       if v not in self.indices:
         self.strongconnect(v, index, stack)
-  
+
   #=============================================================
   def strongconnect(self, v, index, stack):
     """"""
-    
+
     self._indices[v] = index
     self._lowlinks[v] = index
     index += 1
@@ -72,7 +72,7 @@ class Tarjan:
         self._lowlinks[v] = min(self._lowlinks[v], self._lowlinks[w])
       elif self._onstack[w]:
         self._lowlinks[v] = min(self._lowlinks[v], self._indices[w])
-    
+
     if self._lowlinks[v] == self._indices[v]:
       self._SCCs.append(set())
       while stack[-1] != v:
@@ -83,7 +83,7 @@ class Tarjan:
       self._onstack[w] = False
       self._SCCs[-1].add(w)
     return
-  
+
   #======================
   @property
   def edges(self):

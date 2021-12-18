@@ -1,16 +1,20 @@
 #!/usr/bin/env python
-# -*- coding: UTF-8 -*-
+# -*- coding: utf-8 -*-
 
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
 import numpy as np
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 
 from vocab import Vocab
 from lib.models.parsers.base_parser import BaseParser
 from lib.models.parsers.grn_utils_v2 import GraphEncoder
+
+
+tf.disable_eager_execution()
+
 #***************************************************************
 class GRNParser(BaseParser):
   """"""
@@ -47,7 +51,7 @@ class GRNParser(BaseParser):
     embed_inputs = self.embed_concat(word_inputs, tag_inputs) # [batch, sent, embed_size]
 
     top_recur = embed_inputs
-    for i in xrange(self.n_recur):
+    for i in range(self.n_recur):
       with tf.variable_scope('RNN%d' % i, reuse=reuse):
         top_recur, _ = self.RNN(top_recur)
 
@@ -83,8 +87,8 @@ class GRNParser(BaseParser):
     output = {}
     output['probabilities'] = tf.tuple([arc_output['probabilities'],
                                         rel_output['probabilities']])
-    output['predictions'] = tf.pack([arc_output['predictions'],
-                                     rel_output['predictions']])
+    output['predictions'] = tf.stack([arc_output['predictions'],
+                                      rel_output['predictions']])
     output['correct'] = arc_output['correct'] * rel_output['correct']
     output['tokens'] = arc_output['tokens']
     output['n_correct'] = tf.reduce_sum(output['correct'])

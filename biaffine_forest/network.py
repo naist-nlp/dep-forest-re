@@ -25,7 +25,7 @@ import time
 import pickle as pkl
 
 import numpy as np
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 
 from lib import models
 from lib import optimizers
@@ -36,6 +36,8 @@ from vocab import Vocab
 from dataset import Dataset
 
 import json, codecs
+
+tf.disable_eager_execution()
 
 #***************************************************************
 class Network(Configurable):
@@ -81,7 +83,7 @@ class Network(Configurable):
       self._testset = Dataset(self.test_file, self._vocabs, model, self._config, name='Testset')
 
     self._ops = self._gen_ops()
-    self._save_vars = filter(lambda x: u'Pretrained' not in x.name, tf.global_variables())
+    self._save_vars = list(filter(lambda x: u'Pretrained' not in x.name, tf.global_variables()))
     self.history = {
       'train_loss': [],
       'train_accuracy': [],
@@ -207,7 +209,7 @@ class Network(Configurable):
                            latest_filename=self.name.lower(),
                            global_step=self.global_epoch,
                            write_meta_graph=False)
-            with open(os.path.join(self.save_dir, 'history.pkl'), 'w') as f:
+            with open(os.path.join(self.save_dir, 'history.pkl'), 'wb') as f:
                   pkl.dump(self.history, f)
             with open(os.path.join(self.save_dir, 'scores.txt'), 'w') as f:
                   pass
@@ -227,7 +229,7 @@ class Network(Configurable):
                    latest_filename=self.name.lower(),
                    global_step=self.global_epoch,
                    write_meta_graph=False)
-        with open(os.path.join(self.save_dir, 'history.pkl'), 'w') as f:
+        with open(os.path.join(self.save_dir, 'history.pkl'), 'wb') as f:
           pkl.dump(self.history, f)
         with open(os.path.join(self.save_dir, 'scores.txt'), 'w') as f:
           pass
@@ -255,7 +257,7 @@ class Network(Configurable):
       mb_targets = feed_dict[dataset.targets]
       mb_probs = sess.run(op, feed_dict=feed_dict)
       all_predictions[-1].extend(self.model.validate_cube(mb_inputs, mb_targets, mb_probs, is_sparse, self.rels))
-      all_sents[-1].extend([[w.decode('utf-8') for w in sent] for sent in sents])
+      all_sents[-1].extend([[w for w in sent] for sent in sents])
       if len(all_predictions[-1]) == len(dataset[bkt_idx]):
         bkt_idx += 1
         if bkt_idx < len(dataset._metabucket):
@@ -291,7 +293,7 @@ class Network(Configurable):
       mb_targets = feed_dict[dataset.targets]
       mb_probs = sess.run(op, feed_dict=feed_dict)
       all_predictions[-1].extend(self.model.validate_nbest(mb_inputs, mb_targets, mb_probs, self.rels)) # [sents, nbests]
-      all_sents[-1].extend([[w.decode('utf-8') for w in sent] for sent in sents])
+      all_sents[-1].extend([[w for w in sent] for sent in sents])
       if len(all_predictions[-1]) == len(dataset[bkt_idx]):
         bkt_idx += 1
         if bkt_idx < len(dataset._metabucket):
@@ -397,6 +399,9 @@ class Network(Configurable):
   def _gen_ops(self):
     """"""
 
+    # TODO(taro): Investigates the reson for NaNs when using RAdam on a small
+    # training data for testing purposes. Note that SGD has no problem.
+    # optimizer = optimizers.SGDOptimizer(self._config, global_step=self.global_step)
     optimizer = optimizers.RadamOptimizer(self._config, global_step=self.global_step)
     train_output = self._model(self._trainset)
 
@@ -463,12 +468,13 @@ if __name__ == '__main__':
   argparser.add_argument('--cubesparse', action='store_true')
 
   args, extra_args = argparser.parse_known_args()
-  cargs = {k: v for (k, v) in vars(Configurable.argparser.parse_args(extra_args)).iteritems() if v is not None}
+  cargs = {k: v for (k, v) in vars(Configurable.argparser.parse_args(extra_args)).items() if v is not None}
 
   print('*** '+args.model+' ***')
   model = getattr(models, args.model)
 
-  print("CUDA_VISIBLE_DEVICES " + os.environ['CUDA_VISIBLE_DEVICES'])
+  if 'CUDA_VISIBLE_DEVICES' in os.environ:
+    print("CUDA_VISIBLE_DEVICES " + os.environ['CUDA_VISIBLE_DEVICES'])
 
   test_cases = (args.test or args.matrix or args.nbest or args.cube or args.cubesparse)
   other_cases = test_cases or args.load

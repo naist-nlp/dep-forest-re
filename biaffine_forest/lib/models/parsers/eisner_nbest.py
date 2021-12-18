@@ -133,7 +133,7 @@ def eisner_dp_nbest(length, parse_probs, rel_probs):
     ## output nbest of memory[(0,length,'->',1)]
     #for hyp in memory[(0,length,'->',1)]:
     #    print hyp.edges, hyp.logp, hyp.num_roots
-    print 'Length %d, time %f' %(length, time.time()-st_time)
+    print('Length %d, time %f' %(length, time.time()-st_time))
 
     #return [list(hyp.edges) for hyp in memory[(0,length,'->',1)]] # return edges containing (mi,hi,lb)
     nbest = []
@@ -157,4 +157,3 @@ if __name__ == '__main__':
     #print rel_probs
     eisner_dp_nbest(99, parse_probs, rel_probs)
     #print Vocab.ROOT
-

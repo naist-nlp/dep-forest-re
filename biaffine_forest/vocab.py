@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# -*- coding: UTF-8 -*-
+# -*- coding: utf-8 -*-
 
 # Copyright 2016 Timothy Dozat
 #
@@ -24,9 +24,11 @@ import sys
 from collections import Counter
 
 import numpy as np
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 
 from configurable import Configurable
+
+tf.disable_eager_execution()
 
 #***************************************************************
 class Vocab(Configurable):
@@ -143,6 +145,8 @@ class Vocab(Configurable):
                 self.add(counts, line[idx])
             else:
               self.add(counts, line[self.conll_idx])
+          elif line[0] == '#':  # skip comment lines.
+            continue
           else:
             raise ValueError('The training file is misformatted at line %d' % (line_num+1))
 
@@ -228,8 +232,12 @@ class Vocab(Configurable):
       initializer = tf.random_normal_initializer()
       embed_size = self.embed_size
 
-    with tf.device('/cpu:0'):
-      with tf.variable_scope(self.name):
+    # TODO(taro): Reanable the CPU device assignment. TF0.x needs this, since
+    # embedding lookup was supported only on CPUs, not on GPUs or TPUs. However,
+    # it is not necessary for TF1 and above.
+    #
+    # with tf.device('/cpu:0'):
+    with tf.variable_scope(self.name):
         self.trainable_embeddings = tf.get_variable('Trainable', shape=(len(self._str2idx), embed_size), initializer=initializer)
         if self.use_pretrained:
           self.pretrained_embeddings /= np.std(self.pretrained_embeddings)
@@ -269,7 +277,7 @@ class Vocab(Configurable):
 
     embed_input = tf.matmul(tf.reshape(inputs, [-1, input_size]),
                             trainable_embeddings)
-    embed_input = tf.reshape(embed_input, tf.pack([batch_size, bucket_size, self.embed_size]))
+    embed_input = tf.reshape(embed_input, tf.stack([batch_size, bucket_size, self.embed_size]))
     embed_input.set_shape([tf.Dimension(None), tf.Dimension(None), tf.Dimension(self.embed_size)])
     if moving_params is None:
       tf.add_to_collection('Weights', embed_input)
@@ -297,19 +305,19 @@ class Vocab(Configurable):
     return self._str2idx.keys()
   def values(self):
     return self._str2idx.values()
-  def iteritems(self):
-    return self._str2idx.iteritems()
+  def items(self):
+    return self._str2idx.items()
 
   #=============================================================
   def __getitem__(self, key):
-    if isinstance(key, basestring):
+    if isinstance(key, str):
       if not self.cased:
         key = key.lower()
       if self.use_pretrained:
         return (self._str2idx.get(key, self.UNK), self._str2embed.get(key, self.UNK))
       else:
         return (self._str2idx.get(key, self.UNK),)
-    elif isinstance(key, (int, long, np.int32, np.int64)):
+    elif isinstance(key, (int, np.int32, np.int64)):
       return self._idx2str.get(key, self.SPECIAL_TOKENS[self.UNK])
     elif hasattr(key, '__iter__'):
       return tuple(self[k] for k in key)
@@ -318,11 +326,11 @@ class Vocab(Configurable):
     return
 
   def __contains__(self, key):
-    if isinstance(key, basestring):
+    if isinstance(key, str):
       if not self.cased:
         key = key.lower()
       return key in self._str2idx
-    elif isinstance(key, (int, long)):
+    elif isinstance(key, (int,)):
       return key in self._idx2str
     else:
       raise ValueError('key to Vocab.__contains__ must be string or integer')
@@ -333,4 +341,3 @@ class Vocab(Configurable):
 
   def __iter__(self):
     return (key for key in self._str2idx)
-
