@@ -159,7 +159,7 @@ class BaseOptimizer(Configurable):
     t = tf.assign_add(tm1, 1)
     if beta < 1:
       beta_t = tf.convert_to_tensor(beta, name='%s/decay' % name)
-      beta_t = beta_t * (1-beta**tm1) / (1-beta**t)
+      beta_t = beta_t * (1-beta_t**tm1) / (1-beta_t**t)
     else:
       beta_t = tm1 / t
     b_t = tf.assign(b_tm1, beta_t*b_tm1)

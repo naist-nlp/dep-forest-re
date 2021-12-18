@@ -2,12 +2,12 @@ from absl.testing import absltest
 import numpy as np
 import tensorflow.compat.v1 as tf
 
-from lib.optimizers import radam_optimizer
+from lib.optimizers import adam_optimizer
 
 tf.disable_eager_execution()
 
 
-class RadamOptimizerTest(tf.test.TestCase):
+class AdamOptimizerTest(tf.test.TestCase):
 
   def test_simple(self):
     batch_size = 3
@@ -15,7 +15,7 @@ class RadamOptimizerTest(tf.test.TestCase):
     classes = 5
 
     with tf.Session() as sess:
-      optimizer = radam_optimizer.RadamOptimizer(config_file='test_data/test.cfg')
+      optimizer = adam_optimizer.AdamOptimizer(config_file='test_data/test.cfg')
 
       inputs = tf.random.normal([batch_size, dimension])
       labels = tf.nn.softmax(tf.random.normal([batch_size, classes]), axis=1)
