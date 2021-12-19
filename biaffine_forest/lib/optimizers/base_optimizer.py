@@ -34,7 +34,7 @@ class BaseOptimizer(Configurable):
     """"""
 
     self._global_step = kwargs.pop('global_step', tf.Variable(0., trainable=False))
-    super(BaseOptimizer, self).__init__(*args, **kwargs)
+    super().__init__(*args, **kwargs)
     self._accumulators = {}
     return
 
@@ -257,9 +257,9 @@ class BaseOptimizer(Configurable):
   @property
   def learning_rate(self):
     if self.decay_steps > 0:
-      return super(BaseOptimizer, self).learning_rate * self.decay**(self.global_step / self.decay_steps)
+      return super().learning_rate * self.decay**(self.global_step / self.decay_steps)
     else:
-      return super(BaseOptimizer, self).learning_rate
+      return super().learning_rate
   @property
   def global_step(self):
     return self._global_step

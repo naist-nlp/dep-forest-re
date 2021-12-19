@@ -33,7 +33,7 @@ class RadamOptimizer(BaseOptimizer):
   def _init_acc(self, var_list, grads):
     """"""
 
-    super(RadamOptimizer, self)._init_acc(var_list, grads)
+    super()._init_acc(var_list, grads)
     for x_tm1, g_t in zip(var_list, grads):
       if self.mu > 0:
         self.get_accumulator(x_tm1, 'm')

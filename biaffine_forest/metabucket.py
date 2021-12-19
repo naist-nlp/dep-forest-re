@@ -34,9 +34,9 @@ class Metabucket(Configurable):
 
     name = kwargs.get('name', 'Sents')
     self._n_bkts = kwargs.pop('n_bkts', None)
-    super(Metabucket, self).__init__(*args, **kwargs)
+    super().__init__(*args, **kwargs)
     if self._n_bkts is None:
-      self._n_bkts = super(Metabucket, self).n_bkts
+      self._n_bkts = super().n_bkts
     self._buckets = [Bucket(self._config, name='%s-%d' % (name, i)) for i in range(self.n_bkts)]
     self._sizes = None
     self._data = None

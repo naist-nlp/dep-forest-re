@@ -34,7 +34,7 @@ class Bucket(Configurable):
   def __init__(self, *args, **kwargs):
     """"""
 
-    super(Bucket, self).__init__(*args, **kwargs)
+    super().__init__(*args, **kwargs)
     self._size = None
     self._data = None
     self._sents = None

@@ -52,7 +52,7 @@ class Network(Configurable):
         raise TypeError('Parser takes at most one argument')
 
     kwargs['name'] = kwargs.pop('name', model.__name__)
-    super(Network, self).__init__(*args, **kwargs)
+    super().__init__(*args, **kwargs)
     if not os.path.isdir(self.save_dir):
       os.mkdir(self.save_dir)
     with open(os.path.join(self.save_dir, 'config.cfg'), 'w') as f:

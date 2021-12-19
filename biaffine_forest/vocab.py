@@ -48,9 +48,9 @@ class Vocab(Configurable):
     global_step = kwargs.pop('global_step', None)
     cased = kwargs.pop('cased', None)
     self._use_pretrained = kwargs.pop('use_pretrained', False)
-    super(Vocab, self).__init__(*args, **kwargs)
+    super().__init__(*args, **kwargs)
     if cased is None:
-      self._cased = super(Vocab, self).cased
+      self._cased = super().cased
     else:
       self._cased = cased
     if self.name == 'Tags':

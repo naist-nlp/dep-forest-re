@@ -45,7 +45,7 @@ class Dataset(Configurable):
     if self.forest_file_name is not None:
       print("[tlog] self.forest_file_name: " + self.forest_file_name)
 
-    super(Dataset, self).__init__(*args, **kwargs)
+    super().__init__(*args, **kwargs)
     self.vocabs = vocabs
     self._file_iterator = self.file_iterator(filename)
     self._train = (filename == self.train_file)
@@ -278,9 +278,9 @@ class Dataset(Configurable):
   @property
   def n_bkts(self):
     if self._train:
-      return super(Dataset, self).n_bkts
+      return super().n_bkts
     else:
-      return super(Dataset, self).n_valid_bkts
+      return super().n_valid_bkts
 
   #=============================================================
   def __getitem__(self, key):

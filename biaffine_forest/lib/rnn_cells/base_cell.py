@@ -37,7 +37,7 @@ class BaseCell(Configurable):
     output_size = kwargs.pop('output_size', None)
     recur_diag_bilin = kwargs.pop('recur_diag_bilin', False)
     self.moving_params = kwargs.pop('moving_params', None)
-    super(BaseCell, self).__init__(*args, **kwargs)
+    super().__init__(*args, **kwargs)
     self._output_size = output_size if output_size is not None else self.recur_size
     self._input_size = input_size if input_size is not None else self.output_size
     self._recur_diag_bilin = recur_diag_bilin

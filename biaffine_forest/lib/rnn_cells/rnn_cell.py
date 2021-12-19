@@ -31,12 +31,6 @@ class RNNCell(BaseCell):
   """"""
 
   #=============================================================
-  def __init__(self, *args, **kwargs):
-    """"""
-
-    super(RNNCell, self).__init__(*args, **kwargs)
-
-  #=============================================================
   def __call__(self, inputs, state, scope=None):
     """"""
 
