@@ -145,7 +145,7 @@ class Vocab(Configurable):
                 self.add(counts, line[idx])
             else:
               self.add(counts, line[self.conll_idx])
-          elif line[0] == '#':  # skip comment lines.
+          elif line[0][0] == '#':  # skip comment lines.
             continue
           else:
             raise ValueError('The training file is misformatted at line %d' % (line_num+1))
