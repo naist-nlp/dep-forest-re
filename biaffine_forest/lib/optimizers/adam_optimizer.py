@@ -29,8 +29,5 @@ class AdamOptimizer(BaseOptimizer):
       grads, _ = tf.clip_by_global_norm(grads, self.clip)
       grads_and_vars = [(g, v) for g, (_, v) in zip(grads, grads_and_vars)]
 
-    ops = self._adam.apply_gradients(grads_and_vars, name=name)
-
-    with tf.control_dependencies([ops]):
-      with tf.device(self.global_step.device):
-        return tf.assign_add(self.global_step, 1, name=name).op
+    return self._adam.apply_gradients(
+        grads_and_vars, global_step=self.global_step, name=name)
