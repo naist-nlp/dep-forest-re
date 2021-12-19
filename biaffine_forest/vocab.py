@@ -20,6 +20,7 @@ from __future__ import division
 from __future__ import print_function
 
 import os
+import re
 import sys
 from collections import Counter
 
@@ -132,6 +133,7 @@ class Vocab(Configurable):
   #=============================================================
   def add_train_file(self):
     """"""
+    id_pattern = re.compile(r"^[0-9]+$")
 
     counts = Counter()
     with open(self.train_file) as f:
@@ -139,7 +141,7 @@ class Vocab(Configurable):
       for line_num, line in enumerate(f):
         line = line.strip().split()
         if line:
-          if len(line) == 10:
+          if len(line) == 10 and id_pattern.search(line[0]):
             if hasattr(self.conll_idx, '__iter__'):
               for idx in self.conll_idx:
                 self.add(counts, line[idx])

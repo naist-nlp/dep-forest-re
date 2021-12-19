@@ -19,6 +19,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import re
 import numpy as np
 import tensorflow.compat.v1 as tf
 from collections import Counter
@@ -69,6 +70,7 @@ class Dataset(Configurable):
   #=============================================================
   def file_iterator(self, filename):
     """"""
+    id_pattern = re.compile(r"^[0-9]+$")
 
     with open(filename) as f:
       if self.lines_per_buffer > 0:
@@ -77,7 +79,7 @@ class Dataset(Configurable):
           line = f.readline()
           while line:
             line = line.strip().split()
-            if line and line[0][0] != '#':
+            if line and id_pattern.search(line[0]):
               buff[-1].append(line)
             else:
               if len(buff) < self.lines_per_buffer:
@@ -92,7 +94,7 @@ class Dataset(Configurable):
             buff = self._process_buff(buff)
             yield buff
             line = line.strip().split()
-            if line and line[0][0] != '#':
+            if line and id_pattern.search(line[0]):
               buff = [[line]]
             else:
               buff = [[]]
@@ -100,7 +102,7 @@ class Dataset(Configurable):
         buff = [[]]
         for line in f:
           line = line.strip().split()
-          if line and line[0][0] != '#':
+          if line and id_pattern.search(line[0]):
             buff[-1].append(line)
           else:
             if buff[-1]:
