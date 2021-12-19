@@ -232,7 +232,7 @@ class Vocab(Configurable):
       initializer = tf.random_normal_initializer()
       embed_size = self.embed_size
 
-    # TODO(taro): Reanable the CPU device assignment. TF0.x needs this, since
+    # TODO(taro): Verifies the CPU device assignment. TF0.x needs this, since
     # embedding lookup was supported only on CPUs, not on GPUs or TPUs. However,
     # it is not necessary for TF1 and above.
     #
